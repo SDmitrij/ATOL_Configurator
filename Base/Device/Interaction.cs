@@ -1,6 +1,8 @@
 ﻿using Atol.Drivers10.Fptr;
 using Configurator.Base.Initialize;
 using Configurator.Base.Model;
+using Configurator.Base.Out;
+using Configurator.Base.Out.Result;
 using System;
 using System.ComponentModel;
 using System.IO;
@@ -12,9 +14,17 @@ namespace Configurator.Base.Device
 {
     public class Interaction
     {
-        public Interaction()
+        #region private
+        private readonly Config _config;
+        private readonly Fptr _fptr;
+        private readonly Log _log;
+        private string _jsonToExecute;
+        #endregion
+        public Interaction(Config config, Log log)
         {
-            _fptr = FptrInstance.GetInstance().GetFptr();
+            _config = config;
+            _log = log;
+            _fptr = FptrInstance.GetInstance(_log).GetFptr();
         }
 
         public void Begin()
@@ -25,35 +35,46 @@ namespace Configurator.Base.Device
                 FptrLogicConn();
                 CheckShiftStatus();
                 CollectDeviceStatistics();
-                ApplySettings();
+                if (_config.NeedToApplyJson) ApplySettings();
                 Finish();
             } catch(Exception e)
-            {              
-                Log.ResultToFile(e.Message);
+            {
+                _log.Accept(new Execution(e.Message));
+                EmergencyFinish();                
             }
         }
 
-        #region private
+        private void EmergencyFinish()
+        {
+            try 
+            { 
+                Finish(); 
+            } catch (Exception e)
+            {
+                if (_fptr.close() < 0) _log.Accept(new Execution("Can't close driver's connection"));
+                _log.Accept(new Execution(e.Message));
+                _log.Write();
+            }
+        }
 
-        private readonly Fptr _fptr;
-        private string _jsonToExecute;
-
+        #region private     
         private void OpenFptr()
         {
             if (_fptr.open() < 0)
                 throw new Exception(string.Format("Something wrong with connection: " +
                     "{0} [{1}]", _fptr.errorCode(), _fptr.errorDescription()));
-        }
+        }              
 
         private void Finish()
         {
+            _log.Write();
             _fptr.setParam(Constants.LIBFPTR_PARAM_REPORT_TYPE, Constants.LIBFPTR_RT_CLOSE_SHIFT);
 
             if (_fptr.report() < 0 && _fptr.checkDocumentClosed() < 0 && _fptr.close() < 0)
                 throw new Exception(string.Format("Can't finish administrator's session: {0} [{1}]",
                     _fptr.errorCode(), _fptr.errorDescription()));
         }
-
+        
         private void FptrLogicConn()
         {
             if (!_fptr.isOpened())
@@ -83,7 +104,7 @@ namespace Configurator.Base.Device
                     _fptr.errorCode(), _fptr.errorDescription()));
             }
 
-            Log.ResultToFile(string.Format("Success: {0}", result));
+            _log.Accept(new Execution(string.Format("Success: {0}", result)));
         }
 
         private void ValidateJsonToExecute()
@@ -99,11 +120,9 @@ namespace Configurator.Base.Device
 
         private void ReadJson()
         {
-            var path = string.Format("{0}\\Json\\config.json", Directory.GetCurrentDirectory());
-           
-            if (!File.Exists(path)) throw new Exception("Can't find config.json file.");
-            
-            _jsonToExecute = File.ReadAllText(path);
+            if (!File.Exists(_config.JsonToApply)) 
+                throw new Exception(string.Format("Can't find {0} file with json command", _config.JsonToApply));         
+            _jsonToExecute = File.ReadAllText(_config.JsonToApply);
         }
 
         private void CollectDeviceStatistics()
@@ -119,13 +138,14 @@ namespace Configurator.Base.Device
                 var attr = (DescriptionAttribute)prop.GetCustomAttributes(false).FirstOrDefault();
                 var val = prop.GetGetMethod().Invoke(state, null);
 
-                res.Append(string.Format("{0}: {1},\n", attr.Description, val));          
+                res.Append(string.Format("{0}: {1},\n", attr.Description, 
+                    val is object ? JsonSerializer.Serialize(val) : val));          
             }
 
             res.Append("-----------");
 
-            Log.HardwareStateToFile(res.ToString());
-            Log.HardwareStateToFile(JsonSerializer.Serialize(state), true);
+            _log.Accept(new Hardware(res.ToString()));
+            _log.Accept(new Hardware(JsonSerializer.Serialize(state), true));
         }
         #endregion
     }

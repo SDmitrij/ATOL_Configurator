@@ -7,10 +7,7 @@ namespace Configurator.Base.Model
     {
         private readonly Fptr _fptr;
 
-        public State(Fptr fptr)
-        {
-            _fptr = fptr;
-        }
+        public State(Fptr fptr) => _fptr = fptr;
         
         [Description("Заводской номер")]
         public string SerialNumber
@@ -145,7 +142,7 @@ namespace Configurator.Base.Model
         }
 
         [Description("Состояние источника питания")]
-        public string PowerSupplyState
+        public object PowerSupplyState
         {
             get
             {
@@ -153,14 +150,14 @@ namespace Configurator.Base.Model
                 _fptr.setParam(Constants.LIBFPTR_PARAM_POWER_SOURCE_TYPE, Constants.LIBFPTR_PST_BATTERY);
                 _fptr.queryData();
 
-                return string.Format("\n --Процент заряда аккумулятора: {0}," +
-                    "\n --Напряжение: {1},\n --Аккумулятор используется: {2},\n" +
-                    " --Аппарат заряжается: {3},\n --Аппарат может печатать от аккумулятора: {4}\n",
-                    _fptr.getParamInt(Constants.LIBFPTR_PARAM_BATTERY_CHARGE),
-                    _fptr.getParamDouble(Constants.LIBFPTR_PARAM_VOLTAGE),
-                    _fptr.getParamBool(Constants.LIBFPTR_PARAM_USE_BATTERY) ? "Да" : "Нет",
-                    _fptr.getParamBool(Constants.LIBFPTR_PARAM_BATTERY_CHARGING) ? "Да" : "Нет",
-                    _fptr.getParamBool(Constants.LIBFPTR_PARAM_CAN_PRINT_WHILE_ON_BATTERY) ? "Да" : "Нет");
+                return new
+                {
+                    BatteryCharge = _fptr.getParamInt(Constants.LIBFPTR_PARAM_BATTERY_CHARGE).ToString(),
+                    Voltage = _fptr.getParamDouble(Constants.LIBFPTR_PARAM_VOLTAGE).ToString(),
+                    UseBattery = _fptr.getParamBool(Constants.LIBFPTR_PARAM_USE_BATTERY) ? "Yes" : "No",
+                    BatteryCharging = _fptr.getParamBool(Constants.LIBFPTR_PARAM_BATTERY_CHARGING) ? "Yes" : "No",
+                    CanPrintUsingBattery = _fptr.getParamBool(Constants.LIBFPTR_PARAM_CAN_PRINT_WHILE_ON_BATTERY) ? "Yes" : "No"
+                };
             }
         }
     }

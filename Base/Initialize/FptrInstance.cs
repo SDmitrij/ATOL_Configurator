@@ -1,4 +1,6 @@
 ﻿using Atol.Drivers10.Fptr;
+using Configurator.Base.Out;
+using Configurator.Base.Out.Result;
 using System;
 
 namespace Configurator.Base.Initialize
@@ -9,7 +11,7 @@ namespace Configurator.Base.Initialize
         private static FptrInstance _fptrInstance;
         private readonly Fptr _fptr;
 
-        private FptrInstance()
+        private FptrInstance(Log log)
         {
             try
             {
@@ -17,14 +19,15 @@ namespace Configurator.Base.Initialize
             }
             catch (Exception e)
             {
-                Log.ResultToFile(e.Message);
+                log.Accept(new Execution(e.Message));
+                log.Write();
             }
         }
         #endregion
 
-        public static FptrInstance GetInstance()
+        public static FptrInstance GetInstance(Log log)
         {
-            if (_fptrInstance is null) _fptrInstance = new FptrInstance();         
+            if (_fptrInstance is null) _fptrInstance = new FptrInstance(log);         
             return _fptrInstance;
         }
 
