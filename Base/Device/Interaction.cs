@@ -138,11 +138,11 @@ namespace Configurator.Base.Device
                 var attr = (DescriptionAttribute)prop.GetCustomAttributes(false).FirstOrDefault();
                 var val = prop.GetGetMethod().Invoke(state, null);
 
-                res.Append(string.Format("{0}: {1},\n", attr.Description, 
+                res.Append(string.Format("[{0}]: {1},\n", attr.Description, 
                     val is object ? JsonSerializer.Serialize(val) : val));          
             }
 
-            res.Append("-----------");
+            res.Append("-----------\n");
 
             _log.Accept(new Hardware(res.ToString()));
             _log.Accept(new Hardware(JsonSerializer.Serialize(state), true));
